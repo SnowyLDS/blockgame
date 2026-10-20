@@ -39,10 +39,13 @@ function randomCandidate(spec, target, width) {
   });
 }
 
-// 공격마다 후보 N 개 중 (직접 파괴 + 연결 붕괴) 가 가장 많은 것 선택. 두 번째 공격은 첫 공격 결과 위에서 고름
-export function chooseEnemyAttacks(enemy, targetBody) {
+// 공격마다 후보 N 개 중 점수가 가장 높은 것 선택. 두 번째 공격은 첫 공격 결과 위에서 고름
+//  점수 = 파괴 칸 + 붕괴 칸 + 잠긴 칸(🔒 이번 턴 회피 불가)을 맞힌 수 × lockedTargetBonus (+ 맞힌 칸 조금)
+//  isLocked(cell): 대상의 잠긴 칸 판별 (Combat 이 넘겨줌)
+export function chooseEnemyAttacks(enemy, targetBody, { isLocked = () => false } = {}) {
   if (enemy.scriptedAttacks) return enemy.scriptedAttacks(targetBody); // 튜토리얼 등 정해진 공격
   const def = enemy.def;
+  const bonus = CONFIG.enemies.lockedTargetBonus;
   let body = targetBody;
   const chosen = [];
   for (const spec of def.attacks) {
@@ -50,7 +53,8 @@ export function chooseEnemyAttacks(enemy, targetBody) {
     for (let i = 0; i < def.candidates; i++) {
       const atk = randomCandidate(spec, body, enemy.lineWidth);
       const sim = simulateAttacks(body, [atk], enemy.damage);
-      const score = sim.destroyed.length + sim.collapsed.length + sim.hits.length * 0.01;
+      const lockedHits = sim.hits.filter(h => { const c = body.cells[h.y * body.w + h.x]; return c && isLocked(c); }).length;
+      const score = sim.destroyed.length + sim.collapsed.length + lockedHits * bonus + sim.hits.length * 0.01;
       if (!best || score > best.score) best = { atk, sim, score };
     }
     chosen.push(best.atk);

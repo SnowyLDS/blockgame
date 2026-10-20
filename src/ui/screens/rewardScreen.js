@@ -71,6 +71,7 @@ export function rewardScreen(app, root, { kind }) {
     if (kind === 'boss') {
       if (isLastStage(run)) return app.go('end', { victory: true });
       advanceStage(run);
+      return app.go('inn', { between: true }); // 스테이지 사이에는 여관을 반드시 한 번 들름
     }
     app.go('map');
   }

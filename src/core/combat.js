@@ -48,7 +48,7 @@ export class Combat {
     if (countCells(sim.body) === 0) {
       this.phase = 'won';
     } else {
-      this.forecast = chooseEnemyAttacks(this.enemy, this.player);
+      this.forecast = chooseEnemyAttacks(this.enemy, this.player, { isLocked: this.isDodgeLocked });
       this.phase = 'dodge';
     }
     return sim;

@@ -53,10 +53,9 @@ export function trainerScreen(app, root) {
         const status = attackStatus(run, k);
         const atk = buildAttack({ shapeKey: s.shape, x: 3.5, y: 3.5, extend: (activeFamily(run) === family ? weaponExtend(run) : 0) + tecReachBonus(run) });
         return el('div', { class: `skill-row ${STATUS[status].cls}` },
-          shapeThumb(atk.placed, 7, 7, 10),
+          shapeThumb(atk.placed, 7, 7, 8),
           el('div', { class: 'skill-info' },
-            el('b', {}, s.name),
-            el('div', { class: 'muted' }, `요구: 기술 ${s.tecReq}`),
+            el('div', {}, el('b', {}, s.name), el('span', { class: 'muted' }, ` · 기술 ${s.tecReq}`)),
             el('div', { class: `badge ${STATUS[status].cls}` }, STATUS[status].label)),
           learnButton(status, full, family, () => after(trainerLearn(run, 'attack', k, full ? forget[family] : null))));
       })));
@@ -70,10 +69,9 @@ export function trainerScreen(app, root) {
         const s = CONFIG.dodgeSkills[k];
         const status = dodgeStatus(run, k);
         return el('div', { class: `skill-row ${STATUS[status].cls}` },
-          el('div', { class: 'thumb' }, pieceThumb(dodgeFrameOffsets(k), '#45a0c8', 12)),
+          el('div', { class: 'thumb' }, pieceThumb(dodgeFrameOffsets(k), '#45a0c8', 10)),
           el('div', { class: 'skill-info' },
-            el('b', {}, `${s.name} (${dodgeFrameOffsets(k).length}칸)`),
-            el('div', { class: 'muted' }, `요구: 민첩 ${s.agiReq}`),
+            el('div', {}, el('b', {}, `${s.name} (${dodgeFrameOffsets(k).length}칸)`), el('span', { class: 'muted' }, ` · 민첩 ${s.agiReq}`)),
             el('div', { class: `badge ${STATUS[status].cls}` }, STATUS[status].label)),
           learnButton(status, full, 'dodge', () => after(trainerLearn(run, 'dodge', k, full ? forget.dodge : null))));
       })));
@@ -90,8 +88,9 @@ export function trainerScreen(app, root) {
           el('p', {}, `이번 방문에서 배울 수 있는 횟수: `, el('b', {}, run.visit.learnsLeft)),
           el('p', { class: 'with-icon' }, '학습 비용: ', icon('gold', 18), el('b', {}, learnCost(run)), `  (지능 할인 -${Math.round(learnDiscount(run) * 100)}%, 보유 ${run.gold})`),
           el('p', { class: 'muted' }, '해금 = 스탯 조건 충족 · 학습 = 교관에게 배움 · 장착 = 전투에 가져감 (인벤토리 I 에서 변경). 같은 계열 무기로 바꾸면 배운 기술이 유지됩니다.'))),
-      el('div', { class: 'three-col' }, families.map(attackSection), dodgeSection()),
-      el('div', { class: 'row-buttons' }, el('button', { class: 'btn primary', onclick: () => app.go('map') }, '떠나기 ▶')),
+      el('div', { class: 'three-col' }, families.map(attackSection),
+        el('div', {}, dodgeSection(),
+          el('div', { class: 'row-buttons' }, el('button', { class: 'btn primary big', onclick: () => app.go('map') }, '떠나기 ▶')))),
     );
     bar.refresh();
   }

@@ -11,6 +11,7 @@ export function innScreen(app, root) {
   v.inn ??= { choice: null, round: 0, options: null };
   const st = v.inn;
   const S = CONFIG.stats;
+  const between = !run.pos; // 스테이지 사이 (보스 처치 후, 새 지도 시작 전) 에 들르는 여관
   const box = el('div', { class: 'screen inn-screen' });
 
   function chooseHeal() {
@@ -64,11 +65,11 @@ export function innScreen(app, root) {
 
   function render() {
     setChildren(box,
-      screenHeader(app, '여관', '', 'node_inn'),
+      screenHeader(app, between ? `여관 — 스테이지 ${run.stage} 출발 전` : '여관', '', 'node_inn'),
       bar,
       el('div', { class: 'side-row' },
         el('div', {},
-          npcBanner('innkeeper', '푹 쉬고 가요. 몸도 다시 맞춰 드릴게요.'),
+          npcBanner('innkeeper', between ? '보스를 쓰러뜨렸군요! 다음 길을 떠나기 전에 푹 쉬어 가요.' : '푹 쉬고 가요. 몸도 다시 맞춰 드릴게요.'),
           el('div', { class: 'panel' },
             el('h3', {}, '재정비 (항상 가능)'),
             el('p', { class: 'muted' }, '조각 배치·위치 수정, 강화 재지정, 보관 중인 조각 붙이기'),

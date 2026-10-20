@@ -17,7 +17,7 @@ function arc(cx, cy, r, from, to) {
 }
 
 export const CONFIG = {
-  version: '2026-10-21h (휠로 블록 회전)', // 메인 메뉴 아래에 표시 — 브라우저가 예전 파일을 쓰는지 확인용
+  version: '2026-10-21j (철퇴 너프·스테이지 사이 여관·AI 잠긴 칸 노림)', // 메인 메뉴 아래에 표시 — 브라우저가 예전 파일을 쓰는지 확인용
 
   // 전투 판 크기 (칸). 최대 체력 = 판 칸 수 (플레이어 6×6 = 36칸)
   board: {
@@ -89,12 +89,13 @@ export const CONFIG = {
       { type: 'line', points: [[-2, 0], [2, 0]] },
     ] },
     // 철퇴: 'ring' = 가운데가 빈 고리(o). r 바깥 반지름, inner 안쪽 구멍 반지름 (구멍 안 칸은 피해 없음)
-    smash:  { label: '내려찍기', prims: [{ type: 'ring', r: 1.5, inner: 0.8 }] },  // 지름 3
+    //  (6×6 판 기준으로 검과 비슷한 수의 칸을 맞도록 조정: 평균 약 내려찍기 7.6 / 쌍격 7.9 칸)
+    smash:  { label: '내려찍기', prims: [{ type: 'ring', r: 0.95, inner: 0.55 }] },
     twin:   { label: '쌍격', prims: [
-      { type: 'ring', center: [-1.1, 0], r: 0.9, inner: 0.45 },
-      { type: 'ring', center: [1.1, 0], r: 0.9, inner: 0.45 },
+      { type: 'ring', center: [-0.9, 0], r: 0.6, inner: 0.3 },
+      { type: 'ring', center: [0.9, 0], r: 0.6, inner: 0.3 },
     ] },
-    quake:  { label: '대지 강타', prims: [{ type: 'ring', r: 2.5, inner: 1.6 }] }, // 지름 5
+    quake:  { label: '대지 강타', prims: [{ type: 'ring', r: 1.5, inner: 1.0 }] },
 
     // 적 글자 공격 (letter:true → ×letterSize)
     I:    { label: '1', letter: true, prims: [{ type: 'line', points: [[0, -0.5], [0, 0.5]] }] },
@@ -239,6 +240,7 @@ export const CONFIG = {
   enemies: {
     damage: 1,       // 적 공격 칸당 피해 (타입별 damage 로 덮어쓰기 가능)
     aimMargin: 1,    // AI 가 후보 위치를 뽑는 범위 = 대상 몸 외곽 + 이 값
+    lockedTargetBonus: 1.5, // AI 가 후보를 고를 때 잠긴 칸(🔒 이번 턴 회피 불가) 1칸을 맞히면 더하는 점수 (부순 칸 1개 = 1점)
     patternTiers: {
       simple: ['I', 'DASH', 'DIAG', 'ORB'], // 직선·작은 원만 (1스테이지 일반)
       low:  ['I', 'DASH'],
@@ -319,7 +321,7 @@ export const CONFIG = {
   },
 
   inn: {
-    healRounds: 2,       // 회복: 조각 3택1 을 몇 번
+    healRounds: 1,       // 회복: 조각 3택1 을 몇 번
     healChoices: 3,
     healSizes: [3, 4, 5],
     trainAmount: 1,      // 훈련: 스탯 +

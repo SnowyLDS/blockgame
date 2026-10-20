@@ -95,28 +95,20 @@ export function drawCell(ctx, cell, px, py, cs, alpha = 1) {
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
   ctx.fillRect(px + m, py + m + s - b, s, b); ctx.fillRect(px + m + s - b, py + m, b, s);
 
-  if (cell.tier === 1) {
+  // 남은 체력에 맞는 단계로 표시: 방패(3) → 맞으면 하트(2) → 맞으면 일반(1)
+  //  (지정된 강화 cell.tier 는 그대로라 전투가 끝나면 원래 단계로 돌아옴)
+  let shown = cell.tier;
+  while (shown > 0 && cellHpMax(shown) > cell.hp) shown--;
+  if (shown === 1) {
     heart(ctx, cx, cy + cs * 0.03, cs * 0.62);
     ctx.fillStyle = '#ff2d4a'; ctx.fill();
     ctx.lineWidth = 1.5; ctx.strokeStyle = '#fff'; ctx.stroke();
-  } else if (cell.tier >= 2) {
+  } else if (shown >= 2) {
     shield(ctx, cx, cy, cs * 0.66);
     ctx.fillStyle = '#cfd8e6'; ctx.fill();
     ctx.lineWidth = 1.5; ctx.strokeStyle = '#2b3a55'; ctx.stroke();
     ctx.fillStyle = '#5874a8';
     shield(ctx, cx, cy, cs * 0.34); ctx.fill();
-  }
-
-  const max = cellHpMax(cell.tier);
-  if (cell.hp < max) { // 금 간 칸
-    ctx.fillStyle = `rgba(0,0,0,${0.35 * (1 - cell.hp / max) + 0.1})`;
-    ctx.fillRect(px + m, py + m, s, s);
-    ctx.strokeStyle = 'rgba(20,10,10,0.9)'; ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(px + cs * 0.2, py + cs * 0.15); ctx.lineTo(px + cs * 0.45, py + cs * 0.45);
-    ctx.lineTo(px + cs * 0.35, py + cs * 0.65); ctx.lineTo(px + cs * 0.6, py + cs * 0.85);
-    ctx.moveTo(px + cs * 0.45, py + cs * 0.45); ctx.lineTo(px + cs * 0.8, py + cs * 0.35);
-    ctx.stroke();
   }
   ctx.restore();
 }
