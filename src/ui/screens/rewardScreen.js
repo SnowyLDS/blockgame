@@ -1,8 +1,8 @@
 // 전투 보상: 스탯 1개 + 아이템 1개(또는 받지 않기)를 고르고 "확정"을 눌러야 적용됨.
 //  확정 전에는 같은 카드를 다시 누르면 선택 해제, 다른 카드를 누르면 바뀜
 import { CONFIG } from '../../config/gameConfig.js';
-import { el, setChildren } from '../dom.js';
-import { addPending, advanceStage, gainStat, isLastStage, makeReward } from '../../core/run.js';
+import { el, setChildren, toast } from '../dom.js';
+import { acquireItem, addPending, advanceStage, gainStat, isLastStage, makeReward } from '../../core/run.js';
 import { pieceThumb } from '../draw.js';
 import { icon, itemIconCanvas, potionIcon } from '../sprites.js';
 import { sfx } from '../sound.js';
@@ -66,7 +66,7 @@ export function rewardScreen(app, root, { kind }) {
   function confirm() {
     if (rw.statPick != null && gainStat(run, rw.statPick, rw.statAmount)) newCoreNotice();
     const o = rw.itemPick != null && rw.itemPick !== SKIP ? rw.offers[rw.itemPick] : null;
-    if (o?.type === 'gear') run.inventory.push(o.item);
+    if (o?.type === 'gear') toast(acquireItem(run, o.item)); // 빈 칸이면 자동 장착
     if (o?.type === 'potion') addPending(run, o.piece);
     if (kind === 'boss') {
       if (isLastStage(run)) return app.go('end', { victory: true });

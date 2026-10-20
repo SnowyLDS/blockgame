@@ -91,6 +91,15 @@ export function equipItem(run, item) {
   return ok('장착했습니다');
 }
 
+// 장비 획득: 가방에 넣고, 그 칸(무기/방어구)이 비어 있으면 바로 장착. 반환: 안내 문구
+export function acquireItem(run, item) {
+  run.inventory.push(item);
+  const slot = item.kind === 'weapon' ? 'weapon' : 'armor';
+  if (run[slot]) return `${item.name} — 가방에 넣었습니다`;
+  const r = equipItem(run, item);
+  return r.ok ? `${item.name} — 자동으로 장착했습니다` : `${item.name} — 가방에 넣었습니다 (${r.msg})`;
+}
+
 export function unequipSlot(run, slot) {
   const item = run[slot];
   if (!item) return fail('비어 있음');

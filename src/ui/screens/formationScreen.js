@@ -86,11 +86,16 @@ export function formationScreen(app, root, { mode = 'full', back = 'map', backPa
     return m && st.held.cells.map(c => [m[0] + c.dx, m[1] + c.dy]);
   }
 
+  // 회복 조각(보관함)은 다른 칸 위에도 놓을 수 있음 — 겹친 칸은 새 조각으로 바뀜.
+  // 몸에 있던 조각을 옮길 때는 겹치면 안 됨
+  const overlapped = targets => targets.filter(([x, y]) => getCell(body, x, y));
+
   function dropProblem(targets) {
     if (!targets) return '판 위에 놓으세요';
     if (targets.some(([x, y]) => !inBounds(body, x, y))) return '판 밖입니다';
-    if (targets.some(([x, y]) => getCell(body, x, y))) return '다른 칸과 겹칩니다';
-    if (st.held.source === 'tray' && countCells(body) + targets.length > maxCells(run)) return `최대 칸 수(${maxCells(run)})를 넘습니다`;
+    const over = overlapped(targets).length;
+    if (over && st.held.source !== 'tray') return '다른 칸과 겹칩니다';
+    if (st.held.source === 'tray' && countCells(body) + targets.length - over > maxCells(run)) return `최대 칸 수(${maxCells(run)})를 넘습니다`;
     return null;
   }
 
@@ -98,6 +103,8 @@ export function formationScreen(app, root, { mode = 'full', back = 'map', backPa
     const targets = heldTargets();
     const problem = dropProblem(targets);
     if (problem) { sfx.error(); return toast(problem); }
+    const over = st.held.source === 'tray' ? overlapped(targets).length : 0;
+    if (over) toast(`겹친 ${over}칸은 새 조각으로 바뀌었어요`);
     sfx.place();
     const id = st.held.source === 'body' ? st.held.cells[0].cell.piece : body.nextPieceId++;
     st.held.cells.forEach((c, i) => setCell(body, targets[i][0], targets[i][1], { ...c.cell, piece: id }));
@@ -192,6 +199,7 @@ export function formationScreen(app, root, { mode = 'full', back = 'map', backPa
           drawCell(ctx, c.cell, pad + x * cs, pad + y * cs, cs, 0.7);
         });
         drawMarks(ctx, targets, pad, pad, cs, okDrop ? 'ok' : 'invalid');
+        if (okDrop) drawMarks(ctx, overlapped(targets), pad, pad, cs, 'hit'); // 주황 = 새 조각으로 바뀔 기존 칸
       }
     } else if (m && getCell(body, m[0], m[1])) {
       const isCore = getCell(body, m[0], m[1]).core;
@@ -231,9 +239,9 @@ export function formationScreen(app, root, { mode = 'full', back = 'map', backPa
     ? ['✋ 조각 이동: 조각을 클릭해 들고, 원하는 곳에서 클릭해 놓기 (휠·R·우클릭 회전)',
       '판(5×5) 칸 수가 최대 체력이에요. 연결은 상관없으니 원하는 곳에 흩어 배치하세요',
       '✨ 강화 지정: 좌클릭 = 강화 +1 (하트 → 방패), 우클릭 = 강화 -1',
-      '오른쪽 보관함의 조각을 클릭하면 들 수 있어요',
+      '오른쪽 보관함의 회복 조각을 클릭하면 들 수 있어요 — 다른 칸 위에 놓으면 그 칸은 새 조각으로 바뀌어요',
       '회피하려면 빈칸이 필요해요 — 빈칸을 남겨 두면 회피로 옮길 자리가 생깁니다']
-    : ['보관함의 회복 조각을 클릭해 들고, 몸에 이어지게 놓으세요 (R/우클릭 회전)',
+    : ['보관함의 회복 조각을 클릭해 들고, 판 위 아무 곳에나 놓으세요 — 다른 칸 위에 놓으면 그 칸은 새 조각으로 바뀌어요 (휠·R·우클릭 회전)',
       '기존 조각 이동과 강화 재지정은 여관에서만 가능합니다',
       '붙이지 않은 조각은 보관함에 그대로 남습니다'];
 

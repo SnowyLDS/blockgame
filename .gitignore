@@ -1,0 +1,10 @@
+# 설치 파일 빌드 결과물
+installer/output/
+
+# UI 이미지 원본 백업 (게임에는 배경을 투명하게 만든 assets/ui 를 씀)
+assets/ui_original/
+
+# 편집기·OS 임시 파일
+.vscode/
+Thumbs.db
+desktop.ini

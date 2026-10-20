@@ -1,5 +1,5 @@
 import { el, toast, setChildren } from '../dom.js';
-import { addPending, makeShopStock } from '../../core/run.js';
+import { acquireItem, addPending, makeShopStock } from '../../core/run.js';
 import { itemPrice } from '../../core/items.js';
 import { pieceThumb } from '../draw.js';
 import { icon, potionIcon } from '../sprites.js';
@@ -41,7 +41,7 @@ export function shopScreen(app, root) {
             el('div', { class: 'cards' }, stock.items.map(s => {
               const price = itemPrice(s.item);
               const c = itemCard(s.item, el('button', { class: 'btn small', disabled: s.sold || run.gold < price,
-                onclick: () => buy(price, () => { s.sold = true; run.inventory.push(s.item); toast('가방에 넣었습니다'); }) },
+                onclick: () => buy(price, () => { s.sold = true; toast(acquireItem(run, s.item)); }) },
               s.sold ? '판매 완료' : [icon('gold', 16), ` ${price}`]));
               c.classList.toggle('dim', s.sold);
               return c;
