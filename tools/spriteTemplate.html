@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>스프라이트 격자 템플릿</title>
+  <style>
+    body { margin: 0; background: #0b0e15; color: #dfe6f3; font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; }
+    .wrap { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    body.bare .wrap { padding: 0; }
+    body.bare .ui { display: none; }
+    canvas { display: block; max-width: 100%; }
+    button { padding: 8px 14px; border-radius: 8px; border: 1px solid #3f86e0; background: #1f5fae; color: #fff; cursor: pointer; }
+    .muted { color: #8892a8; }
+    pre { white-space: pre-wrap; background: #151b28; padding: 12px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ui">
+    <h2 id="title"></h2>
+    <p class="muted">이 격자 이미지(또는 아래 설명 텍스트)를 이미지 AI에 주고, 같은 격자 배치로 그림을 만들어
+      저장하세요. 격자가 균등하기만 하면 해상도는 상관없습니다. <a id="switch" style="color:#7fd3ff"></a></p>
+    <button id="dl">템플릿 PNG 다운로드</button>
+  </div>
+  <canvas id="tpl"></canvas>
+  <div class="ui">
+    <h3>잘라낸 결과 미리보기</h3>
+    <div id="preview" class="muted">이미지 파일이 아직 없습니다.</div>
+    <h3>AI 에게 줄 설명 텍스트</h3>
+    <pre id="prompt"></pre>
+  </div>
+</div>
+<script type="module">
+import { CONFIG } from '../src/config/gameConfig.js';
+
+const q = new URLSearchParams(location.search);
+const SHEETS = {
+  chars: { cfg: CONFIG.sprites, name: '캐릭터', file: 'sprite_template.png' },
+  items: { cfg: CONFIG.itemSprites, name: '아이템', file: 'item_template.png' },
+  icons: { cfg: CONFIG.icons, name: 'UI 아이콘', file: 'icon_template.png' },
+};
+const sheetKey = SHEETS[q.get('sheet')] ? q.get('sheet') : 'chars';
+const isItems = sheetKey !== 'chars';
+const S = SHEETS[sheetKey].cfg;
+const CELL = 256;
+const cv = document.getElementById('tpl');
+cv.width = S.cols * CELL; cv.height = S.rows * CELL;
+const ctx = cv.getContext('2d');
+if (q.get('bare')) document.body.classList.add('bare');
+document.getElementById('title').textContent = `${SHEETS[sheetKey].name} 스프라이트 격자 템플릿 (${S.sheet})`;
+const sw = document.getElementById('switch');
+sw.replaceWith(...Object.entries(SHEETS).filter(([k]) => k !== sheetKey).map(([k, s]) =>
+  Object.assign(document.createElement('a'), { href: `?sheet=${k}`, textContent: ` → ${s.name} 시트 보기 `, style: 'color:#7fd3ff' })));
+
+function wrap(text, maxW) {
+  const lines = []; let line = '';
+  for (const ch of text) {
+    if (ctx.measureText(line + ch).width > maxW) { lines.push(line); line = ch; } else line += ch;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height);
+const byPos = {};
+for (const [key, c] of Object.entries(S.cells)) byPos[c.at.join(',')] = [key, c];
+for (let r = 0; r < S.rows; r++) for (let col = 0; col < S.cols; col++) {
+  const x = col * CELL, y = r * CELL;
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, y + 1.5, CELL - 3, CELL - 3);
+  const hit = byPos[`${col},${r}`];
+  ctx.fillStyle = '#000'; ctx.textAlign = 'center';
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillText(`[${col},${r}]`, x + CELL / 2, y + 22);
+  if (!hit) { ctx.fillStyle = '#999'; ctx.fillText('(비어 있음)', x + CELL / 2, y + CELL / 2); continue; }
+  const [key, c] = hit;
+  ctx.font = '64px sans-serif'; ctx.fillText(c.emoji, x + CELL / 2, y + 100);
+  ctx.font = 'bold 15px sans-serif'; ctx.fillText(key, x + CELL / 2, y + 130);
+  ctx.font = '14px sans-serif';
+  wrap(c.desc, CELL - 20).forEach((ln, i) => ctx.fillText(ln, x + CELL / 2, y + 156 + i * 18));
+}
+
+document.getElementById('dl').onclick = () => {
+  const a = document.createElement('a');
+  a.href = cv.toDataURL('image/png'); a.download = SHEETS[sheetKey].file; a.click();
+};
+
+document.getElementById('prompt').textContent =
+  `${S.cols}열 × ${S.rows}행의 균등한 격자 이미지 한 장을 만들어 주세요. 격자선이나 글자는 넣지 마세요.\n` +
+  `공통 스타일: ${S.style}\n\n` +
+  Object.values(S.cells).map(c => `[${c.at[0] + 1}열 ${c.at[1] + 1}행] ${c.desc}`).join('\n');
+
+const img = new Image();
+img.onload = () => {
+  const box = document.getElementById('preview'); box.textContent = '';
+  box.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+  const cw = img.naturalWidth / S.cols, ch = img.naturalHeight / S.rows, ins = S.inset ?? 0;
+  for (const [key, c] of Object.entries(S.cells)) {
+    const p = document.createElement('canvas'); p.width = 120; p.height = 120;
+    p.getContext('2d').drawImage(img, c.at[0] * cw + cw * ins, c.at[1] * ch + ch * ins, cw * (1 - 2 * ins), ch * (1 - 2 * ins), 0, 0, 120, 120);
+    const fig = document.createElement('div'); fig.style.textAlign = 'center';
+    fig.append(p, Object.assign(document.createElement('div'), { textContent: key }));
+    box.append(fig);
+  }
+};
+img.src = '../' + S.sheet;
+</script>
+</body>
+</html>
