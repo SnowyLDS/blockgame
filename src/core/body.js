@@ -97,6 +97,14 @@ export function removeDisconnected(b) {
   return d;
 }
 
+// 판을 w×h 로 키움: 기존 칸은 가운데로 옮기고 둘레는 빈칸
+export function growBody(b, w, h) {
+  const ox = Math.floor((w - b.w) / 2), oy = Math.floor((h - b.h) / 2);
+  const cells = new Array(w * h).fill(null);
+  b.cells.forEach((c, i) => { if (c) cells[(Math.floor(i / b.w) + oy) * w + (i % b.w) + ox] = c; });
+  b.w = w; b.h = h; b.cells = cells;
+}
+
 export function restoreHp(b) {
   for (const c of b.cells) if (c && !c.core) c.hp = cellHpMax(c.tier);
 }

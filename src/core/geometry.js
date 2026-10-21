@@ -37,6 +37,7 @@ export function resolveShape(def, { rotation = 0, extend = 0, width = 0.3, sizeS
     }
     const c = p.center ?? [0, 0];
     const grow = extend * CONFIG.weapons.circleExtendFactor;
+    if (p.type === 'star') return starPrims(c[0] * scale, c[1] * scale, p.r * scale + grow, p.coreMult ?? 2).map(q => ({ ...q, points: q.points.map(pt => rotatePoint(pt, rotation)) }));
     const out = {
       type: p.type,
       center: rotatePoint([c[0] * scale, c[1] * scale], rotation),
@@ -44,8 +45,22 @@ export function resolveShape(def, { rotation = 0, extend = 0, width = 0.3, sizeS
     };
     if (p.type === 'ring') out.inner = Math.max(0, p.inner * scale + grow - ringBonus); // 커질 땐 두께 유지, 두께 보너스는 안쪽으로
     return out;
-  });
+  }).flat();
   return { prims, width: def.width ?? width };
+}
+
+// 다윗의 별(육각별): 뾰족한 삼각형 2개(피해 ×1) + 가운데 육각형(피해 ×coreMult)
+//  r = 별 끝까지 반지름, 가운데 육각형 꼭짓점 반지름 = r/√3
+function starPrims(cx, cy, r, coreMult) {
+  const ring = (n, rad, start) => Array.from({ length: n }, (_, i) => {
+    const a = (start + i * 360 / n) * Math.PI / 180;
+    return [cx + Math.cos(a) * rad, cy + Math.sin(a) * rad];
+  });
+  return [
+    { type: 'poly', points: ring(3, r, -90), mult: 1 },
+    { type: 'poly', points: ring(3, r, 90), mult: 1 },
+    { type: 'poly', points: ring(6, r / Math.sqrt(3), 0), mult: coreMult, core: true },
+  ];
 }
 
 // 로컬 도형을 판 좌표 (px, py) 에 놓음 (연속 좌표)
@@ -53,8 +68,8 @@ export function placeShape(shape, px, py) {
   return {
     width: shape.width,
     origin: [px, py],
-    prims: shape.prims.map(p => p.type === 'line'
-      ? { type: 'line', points: p.points.map(([x, y]) => [x + px, y + py]) }
+    prims: shape.prims.map(p => p.points
+      ? { ...p, points: p.points.map(([x, y]) => [x + px, y + py]) }
       : { ...p, center: [p.center[0] + px, p.center[1] + py] }),
   };
 }
@@ -103,8 +118,23 @@ function segRectDist(ax, ay, bx, by, x0, y0, x1, y1) {
   );
 }
 
+// 볼록 다각형과 칸 사각형이 넓이를 가지고 겹치는가 (분리축 판정, 변끼리 닿기만 하면 제외)
+function convexHitsRect(pts, x, y) {
+  const rect = [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]];
+  const axes = [[1, 0], [0, 1]];
+  pts.forEach((p, i) => { const q = pts[(i + 1) % pts.length]; axes.push([q[1] - p[1], p[0] - q[0]]); });
+  for (const [ax, ay] of axes) {
+    const len = Math.hypot(ax, ay) || 1;
+    const proj = list => list.map(([px, py]) => (px * ax + py * ay) / len);
+    const a = proj(pts), b = proj(rect);
+    if (Math.min(Math.max(...a), Math.max(...b)) - Math.max(Math.min(...a), Math.min(...b)) <= EPS) return false;
+  }
+  return true;
+}
+
 // 도형 하나가 칸 (x, y) 와 조금이라도 겹치는가 (경계에 딱 닿기만 하면 제외)
 export function primHitsCell(prim, halfWidth, x, y) {
+  if (prim.type === 'poly') return convexHitsRect(prim.points, x, y);
   if (prim.type === 'circle') {
     return pointRectDist(prim.center[0], prim.center[1], x, y, x + 1, y + 1) < prim.r - EPS;
   }
@@ -126,10 +156,11 @@ function shapeBounds(placed) {
   const hw = placed.width / 2;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const p of placed.prims) {
-    if (p.type === 'line') {
+    if (p.points) {
+      const m = p.type === 'line' ? hw : 0;
       for (const [x, y] of p.points) {
-        x0 = Math.min(x0, x - hw); y0 = Math.min(y0, y - hw);
-        x1 = Math.max(x1, x + hw); y1 = Math.max(y1, y + hw);
+        x0 = Math.min(x0, x - m); y0 = Math.min(y0, y - m);
+        x1 = Math.max(x1, x + m); y1 = Math.max(y1, y + m);
       }
     } else {
       x0 = Math.min(x0, p.center[0] - p.r); y0 = Math.min(y0, p.center[1] - p.r);
@@ -139,7 +170,7 @@ function shapeBounds(placed) {
   return { x0, y0, x1, y1 };
 }
 
-// 놓인 도형이 걸치는 판 위 칸 목록 [[x,y], ...]
+// 놓인 도형이 걸치는 판 위 칸 목록 [[x, y, 피해 배율], ...] — 배율 = 겹친 도형 중 가장 큰 mult (기본 1)
 export function cellsHitByShape(placed, w, h) {
   const hw = placed.width / 2;
   const b = shapeBounds(placed);
@@ -148,7 +179,9 @@ export function cellsHitByShape(placed, w, h) {
   const xs = Math.max(0, Math.floor(b.x0)), xe = Math.min(w - 1, Math.floor(b.x1));
   for (let y = ys; y <= ye; y++) {
     for (let x = xs; x <= xe; x++) {
-      if (placed.prims.some(p => primHitsCell(p, hw, x, y))) out.push([x, y]);
+      let mult = 0;
+      for (const p of placed.prims) if (primHitsCell(p, hw, x, y)) mult = Math.max(mult, p.mult ?? 1);
+      if (mult) out.push([x, y, mult]);
     }
   }
   return out;

@@ -1,11 +1,11 @@
 // 한 판(런)의 진행 상태: 스탯, 몸, 장비, 기술, 돈, 맵 위치
 import { CONFIG } from '../config/gameConfig.js';
-import { assignedEnhance, cellHpMax, cloneBody, countCells, createBody, nonCoreCells, restoreHp } from './body.js';
+import { assignedEnhance, cellHpMax, cloneBody, countCells, createBody, growBody, nonCoreCells, restoreHp } from './body.js';
 import { distinctPieces, randomPiece, scatterBody } from './pieces.js';
 import { generateMap } from './map.js';
 import { makeItem, randomItem } from './items.js';
-import { learnAttack, learnDodge, normalizeLoadout } from './skills.js';
-import { canWield, learnCost, maxCells, totalEnhance, weaponStrReq } from './stats.js';
+import { normalizeLoadout } from './skills.js';
+import { boardSize, canWield, maxCells, totalEnhance } from './stats.js';
 import { pick, randInt, shuffle, weightedIndex, weightedKey } from './rng.js';
 
 const ok = msg => ({ ok: true, msg });
@@ -15,7 +15,7 @@ export function newRun(stats) {
   const run = {
     stats: { ...stats },
     gold: CONFIG.economy.startGold,
-    body: createPlayerBody(),
+    body: null,
     weapon: null, armor: null,
     inventory: [],
     pending: [],                       // 아직 몸에 붙이지 않은 조각 [{offsets, color}]
@@ -25,6 +25,7 @@ export function newRun(stats) {
     visit: {},                         // 현재 노드에서만 쓰는 상태 (상점 재고 등)
     battlesWon: 0,
   };
+  run.body = createBody(boardSize(run), boardSize(run));
   scatterBody(run.body, Math.round(maxCells(run) * CONFIG.body.startFill));
   autoAssignEnhance(run);
   const start = CONFIG.weapons.starting;
@@ -51,19 +52,20 @@ function autoAssignEnhance(run) {
   }
 }
 
-function createPlayerBody() {
-  return createBody(CONFIG.board.playerW, CONFIG.board.playerH);
-}
 // 시작 스탯 주사위 1개 (rollWeights 확률)
 export function rollStat() {
   const S = CONFIG.stats;
   return S.rollMin + weightedIndex(S.rollWeights);
 }
 
+// 스탯 올리기. 반환: { grown: 판이 커졌으면 새 한 변 칸 수(아니면 0), learned: 새로 배운 기술 이름 목록 }
 export function gainStat(run, key, amount) {
   run.stats[key] = Math.min(CONFIG.stats.cap, run.stats[key] + amount);
-  normalizeLoadout(run);
-  return 0; // (예전 규칙: 새로 생긴 보조 코어 수)
+  const learned = normalizeLoadout(run);
+  const n = boardSize(run);
+  if (n <= run.body.w) return { grown: 0, learned };
+  growBody(run.body, n, n);
+  return { grown: n, learned };
 }
 
 function armorCheck(run, armor) {
@@ -76,7 +78,6 @@ export function equipItem(run, item) {
   const i = run.inventory.indexOf(item);
   if (i < 0) return fail('가방에 없는 아이템');
   if (item.kind === 'weapon') {
-    if (!canWield(run, item)) return fail(`힘 ${weaponStrReq(item)} 이상 필요`);
     run.inventory.splice(i, 1);
     if (run.weapon) run.inventory.push(run.weapon);
     run.weapon = item;
@@ -111,15 +112,6 @@ export function unequipSlot(run, slot) {
   run.inventory.push(item);
   normalizeLoadout(run);
   return ok('해제했습니다');
-}
-
-// 훈련교관 학습: 골드 확인 → 학습 → 비용 지불 (type: 'attack' | 'dodge')
-export function trainerLearn(run, type, key, forgetKey) {
-  const cost = learnCost(run);
-  if (run.gold < cost) return fail(`골드가 부족합니다 (필요 ${cost})`);
-  const r = type === 'dodge' ? learnDodge(run, key, forgetKey) : learnAttack(run, key, forgetKey);
-  if (r.ok) run.gold -= cost;
-  return r;
 }
 
 export function makeReward(run, kind) {

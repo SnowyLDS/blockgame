@@ -5,7 +5,6 @@ import { combatScreen } from './ui/screens/combatScreen.js';
 import { rewardScreen } from './ui/screens/rewardScreen.js';
 import { shopScreen } from './ui/screens/shopScreen.js';
 import { innScreen } from './ui/screens/innScreen.js';
-import { trainerScreen } from './ui/screens/trainerScreen.js';
 import { formationScreen } from './ui/screens/formationScreen.js';
 import { endScreen } from './ui/screens/endScreen.js';
 import { menuScreen } from './ui/screens/menuScreen.js';
@@ -27,7 +26,6 @@ const screens = {
   reward: rewardScreen,
   shop: shopScreen,
   inn: innScreen,
-  trainer: trainerScreen,
   formation: formationScreen,
   end: endScreen,
 };

@@ -1,4 +1,4 @@
-// 기술 해금 → 학습 → 장착
+// 기술: 스탯이 요구치에 닿으면 자동으로 배움 (공격 = 기술 스탯, 회피 = 민첩) → 인벤토리에서 장착
 import { CONFIG } from '../config/gameConfig.js';
 import { activeFamily, attackSlots } from './stats.js';
 
@@ -8,55 +8,13 @@ const fail = msg => ({ ok: false, msg });
 export const familySkills = family =>
   Object.keys(CONFIG.attackSkills).filter(k => CONFIG.attackSkills[k].family === family);
 
-export const baseSkill = family =>
-  familySkills(family).find(k => CONFIG.attackSkills[k].tecReq <= 0);
+// 지금 스탯으로 쓸 수 있는 기술 (설정 순서대로)
+const unlockedAttacks = (run, family) => familySkills(family).filter(k => run.stats.tec >= CONFIG.attackSkills[k].tecReq);
+const unlockedDodges = run => Object.keys(CONFIG.dodgeSkills).filter(k => run.stats.agi >= CONFIG.dodgeSkills[k].agiReq);
 
 export function learnedOf(run, family) {
-  if (!run.learned[family]) run.learned[family] = [];
+  run.learned[family] = unlockedAttacks(run, family);
   return run.learned[family];
-}
-
-// 'locked' | 'unlocked' | 'learned' | 'equipped'
-export function attackStatus(run, key) {
-  const s = CONFIG.attackSkills[key];
-  if (activeFamily(run) === s.family && run.equippedAttack.includes(key)) return 'equipped';
-  if (learnedOf(run, s.family).includes(key)) return 'learned';
-  return run.stats.tec >= s.tecReq ? 'unlocked' : 'locked';
-}
-
-export function dodgeStatus(run, key) {
-  if (run.equippedDodge === key) return 'equipped';
-  if (run.learnedDodge.includes(key)) return 'learned';
-  return run.stats.agi >= CONFIG.dodgeSkills[key].agiReq ? 'unlocked' : 'locked';
-}
-
-function learnInto(list, key, max, forgetKey) {
-  if (list.includes(key)) return fail('이미 배운 기술입니다');
-  if (list.length >= max) {
-    if (!forgetKey || !list.includes(forgetKey)) return fail(`최대 ${max}개까지 배울 수 있어요. 잊을 기술을 고르세요`);
-    list.splice(list.indexOf(forgetKey), 1);
-  }
-  list.push(key);
-  return ok('배웠습니다');
-}
-
-export function learnAttack(run, key, forgetKey) {
-  const s = CONFIG.attackSkills[key];
-  if (run.stats.tec < s.tecReq) return fail(`기술 ${s.tecReq} 이상 필요`);
-  const r = learnInto(learnedOf(run, s.family), key, CONFIG.skills.maxLearnedPerFamily, forgetKey);
-  if (r.ok) {
-    if (forgetKey) run.equippedAttack = run.equippedAttack.filter(k => k !== forgetKey);
-    normalizeLoadout(run);
-  }
-  return r;
-}
-
-export function learnDodge(run, key, forgetKey) {
-  const s = CONFIG.dodgeSkills[key];
-  if (run.stats.agi < s.agiReq) return fail(`민첩 ${s.agiReq} 이상 필요`);
-  const r = learnInto(run.learnedDodge, key, CONFIG.skills.maxLearnedDodge, forgetKey);
-  if (r.ok) normalizeLoadout(run);
-  return r;
 }
 
 export function toggleEquipAttack(run, key) {
@@ -81,19 +39,23 @@ export function equipDodge(run, key) {
   return ok('장착');
 }
 
-// 무기·스탯이 바뀐 뒤 장착 상태를 맞춤
+// 무기·스탯이 바뀐 뒤 배운 기술·장착 상태를 맞춤
+//  반환: 이번에 새로 배운 기술 이름 목록 (공격은 지금 무기 계열만)
 export function normalizeLoadout(run) {
   const fam = activeFamily(run);
+  const had = new Set([...(run.learned[fam] ?? []), ...run.learnedDodge]);
   const list = learnedOf(run, fam);
-  if (!list.length) {
-    const b = baseSkill(fam);
-    if (b) list.push(b); // 계열 기본 기술은 처음 쥘 때 자동 습득
-  }
+  run.learnedDodge = unlockedDodges(run);
+  const fresh = [...list, ...run.learnedDodge].filter(k => !had.has(k));
   const slots = attackSlots(run);
   run.equippedAttack = run.equippedAttack.filter(k => list.includes(k)).slice(0, slots);
   for (const k of list) {
     if (run.equippedAttack.length >= slots) break;
     if (!run.equippedAttack.includes(k)) run.equippedAttack.push(k);
   }
+  // 새 회피 기술을 배우면 바로 장착 (인벤토리에서 바꿀 수 있음)
+  const newDodge = fresh.filter(k => CONFIG.dodgeSkills[k]).pop();
+  if (newDodge) run.equippedDodge = newDodge;
   if (!run.learnedDodge.includes(run.equippedDodge)) run.equippedDodge = run.learnedDodge[0] ?? null;
+  return fresh.map(k => (CONFIG.attackSkills[k] ?? CONFIG.dodgeSkills[k]).name);
 }

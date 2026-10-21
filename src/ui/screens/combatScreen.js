@@ -12,7 +12,7 @@ import { icon, playerSpriteKey, portrait } from '../sprites.js';
 import { screenHeader } from '../widgets.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const ATTACK_SFX = { fist: 'punch', sword: 'slash', mace: 'smash' };
+const ATTACK_SFX = { fist: 'punch', sword: 'slash', mace: 'smash', bow: 'arrow' };
 
 // tutorial: 튜토리얼 단계 정의 (tutorialScreen 참고). 있으면 정해진 몸·적으로 싸우고, 결과를 tutorial.check 로 판정
 export function combatScreen(app, root, { kind, tutorial: tut = null }) {
@@ -172,10 +172,17 @@ export function combatScreen(app, root, { kind, tutorial: tut = null }) {
       return;
     }
     if (ph === 'attack') {
-      phaseBox.innerHTML = `턴 ${combat.turn} · <b>① 내 공격</b> — 기술을 고르고 적 몸 위에서 위치를 맞춘 뒤 클릭`;
-      setChildren(controls, combat.skills.map((k, i) =>
-        el('button', { class: `btn skill ${ui.skill === k ? 'on' : ''}`, onclick: () => { ui.skill = k; refreshControls(); updateView(); } },
-          `${i + 1}. ${CONFIG.attackSkills[k].name}`)));
+      const volley = combat.shotsLeft; // 여러 발 기술을 쏘는 중이면 남은 발 수
+      phaseBox.innerHTML = volley
+        ? `턴 ${combat.turn} · <b>① 내 공격</b> — 남은 화살 <b>${volley}발</b>: 다음 위치를 조준해 클릭`
+        : `턴 ${combat.turn} · <b>① 내 공격</b> — 기술을 고르고 적 몸 위에서 위치를 맞춘 뒤 클릭`;
+      setChildren(controls, combat.skills.map((k, i) => {
+        const s = CONFIG.attackSkills[k];
+        return el('button', {
+          class: `btn skill ${ui.skill === k ? 'on' : ''}`, disabled: !!volley && ui.skill !== k,
+          onclick: () => { if (combat.shotsLeft) return; ui.skill = k; refreshControls(); updateView(); },
+        }, `${i + 1}. ${s.name}${s.shots > 1 ? ` (${s.shots}발)` : ''}`);
+      }));
     } else if (ph === 'dodge') {
       phaseBox.innerHTML = `턴 ${combat.turn} · <b>② 회피</b> — 빨간 예고를 보고 [${dodgeName}] 틀을 몸 위에 놓고 클릭해 들어 올린 뒤, 옮길 곳에서 클릭 (휠: 든 블록 90° 회전)${CONFIG.dodge.maxShift != null ? ` (최대 ${CONFIG.dodge.maxShift}칸)` : ''}`;
       setChildren(controls,
@@ -266,7 +273,8 @@ export function combatScreen(app, root, { kind, tutorial: tut = null }) {
     if (res.hits.length) setTimeout(() => anim(eCard, 'hurt'), 120);
     setTimeout(() => impactSounds(res), 120);
     flash('enemy', res);
-    addLog(`▶ ${skill.name}: ${summary(res)}`, 'me');
+    const shots = skill.shots ?? 1;
+    addLog(`▶ ${skill.name}${shots > 1 ? ` (${shots - (combat.shotsLeft ?? 0)}/${shots}발)` : ''}: ${summary(res)}`, 'me');
     refreshControls(); updateView();
     await wait(750);
     if (!alive) return;
@@ -281,6 +289,8 @@ export function combatScreen(app, root, { kind, tutorial: tut = null }) {
       await wait(700);
       return alive && win();
     }
+    // 여러 발 기술: 아직 쏠 발이 남았으면 공격 단계 유지 (다음 발 조준)
+    if (combat.phase === 'attack' && combat.shotsLeft) { ui.busy = false; refreshControls(); updateView(); return; }
     if (tutEvent('attack', { atk, sim: res })) { ui.busy = false; refreshControls(); return; }
     // 적이 공격하지 않는 경우 (튜토리얼 허수아비 등) 바로 다음 턴
     if (!combat.forecast.length) {
@@ -423,7 +433,7 @@ export function combatScreen(app, root, { kind, tutorial: tut = null }) {
     else if (e.key === ' ') { e.preventDefault(); skipDodge(); }
     else if (/^[1-3]$/.test(e.key) && combat.phase === 'attack') {
       const k = combat.skills[Number(e.key) - 1];
-      if (k) { ui.skill = k; sfx.click(); refreshControls(); updateView(); }
+      if (k && !combat.shotsLeft) { ui.skill = k; sfx.click(); refreshControls(); updateView(); }
     }
   };
   window.addEventListener('keydown', onKey);

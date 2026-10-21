@@ -171,6 +171,18 @@ export function drawShape(ctx, placed, ox, oy, cs, color, label) {
     ctx.fillStyle = color.fill; ctx.fill('evenodd');
     ctx.strokeStyle = color.line; ctx.lineWidth = 2; ctx.stroke();
   }
+  // 다각형(철퇴 별): 삼각형 2개를 따로 칠해 겹치는 가운데 육각형(2배 피해)이 더 진하게 보임
+  for (const p of placed.prims.filter(q => q.type === 'poly')) {
+    ctx.beginPath();
+    p.points.forEach(([x, y], i) => (i ? ctx.lineTo(ox + x * cs, oy + y * cs) : ctx.moveTo(ox + x * cs, oy + y * cs)));
+    ctx.closePath();
+    if (p.core) {
+      ctx.setLineDash([3, 2]); ctx.strokeStyle = color.line; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+    } else {
+      ctx.fillStyle = color.fill; ctx.fill();
+      ctx.strokeStyle = color.line; ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
   const [x, y] = placed.origin;
   ctx.fillStyle = color.line;
   ctx.beginPath(); ctx.arc(ox + x * cs, oy + y * cs, 3, 0, Math.PI * 2); ctx.fill();

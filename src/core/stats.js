@@ -13,24 +13,30 @@ export const attackSlots = run => tableValue(CONFIG.stats.attackSlotsByInt, run.
 
 const armorEnhance = armor => (armor ? CONFIG.grades[armor.grade].armorEnhance : 0);
 
-// 최대 체력(칸) = 내 판 칸 수 (5×5 = 25). 스탯·방어구와 무관
-export function maxCells() {
-  return CONFIG.board.playerW * CONFIG.board.playerH;
+// 내 판 한 변 칸 수 (체력 스탯 구간)
+export const boardSize = (run, vit = run.stats.vit) => tableValue(CONFIG.board.playerByVit, vit);
+
+// 최대 체력(칸) = 내 판 칸 수 (빈칸 포함)
+export function maxCells(run) {
+  return boardSize(run) ** 2;
 }
 
 export function totalEnhance(run, armor = run.armor) {
   return CONFIG.body.baseEnhance + run.stats.vit * CONFIG.stats.enhancePerVit + armorEnhance(armor);
 }
 
-export const weaponStrReq = item => CONFIG.grades[item.grade].strReq;  // 무기 장착 힘 요구치 (등급별)
-export const canWield = (run, item) => run.stats.str >= weaponStrReq(item);
+// 장비 요구 스탯 없음 — 어떤 무기든 장착 가능
+export const canWield = () => true;
 
 export function activeFamily(run) {
   return run.weapon && canWield(run, run.weapon) ? run.weapon.family : 'fist';
 }
 
+// 무기 등급의 범위 보너스 × 계열 배율 (활은 원이 작아 0.25)
+export const gradeExtend = item => CONFIG.grades[item.grade].weaponExtend * (CONFIG.weapons.families[item.family].extendScale ?? 1);
+
 export function weaponExtend(run) {
-  return activeFamily(run) === 'fist' ? 0 : CONFIG.grades[run.weapon.grade].weaponExtend;
+  return activeFamily(run) === 'fist' ? 0 : gradeExtend(run.weapon);
 }
 
 // ── 매 포인트 효과 ──
@@ -40,8 +46,6 @@ export const tecReachBonus = run => run.stats.tec * PP().tecReach;              
 export function enemyLineWidthVs(run) {                                           // 나를 때리는 적 선 두께
   return Math.max(PP().agiEnemyWidthMin, CONFIG.attack.enemyLineWidth + run.stats.agi * PP().agiEnemyWidth);
 }
-export const learnDiscount = run => Math.min(PP().intLearnDiscountMax, run.stats.int * PP().intLearnDiscount);
-export const learnCost = run => Math.round(CONFIG.trainer.learnCost * (1 - learnDiscount(run)));
 
 // ── 스탯 구간(눈에 띄는 효과가 생기는 값) ──
 export function statMilestones(key) {
@@ -50,11 +54,10 @@ export function statMilestones(key) {
   const add = (at, label) => { if (at > 0) list.push({ at, label }); };
   if (key === 'str') {
     S.damageByStr.forEach(([at, d]) => add(at, `칸당 피해 ${d}`));
-    CONFIG.grades.forEach(g => add(g.strReq, `${g.name} 무기`));
   }
-  if (key === 'agi') Object.values(CONFIG.dodgeSkills).forEach(d => add(d.agiReq, `${d.name} 해금`));
-  if (key === 'tec') Object.values(CONFIG.attackSkills).forEach(a => add(a.tecReq, `${a.name} 해금`));
-  // 체력은 구간 없이 포인트마다 강화 +1
+  if (key === 'agi') Object.values(CONFIG.dodgeSkills).forEach(d => add(d.agiReq, `${d.name} 습득`));
+  if (key === 'tec') Object.values(CONFIG.attackSkills).forEach(a => add(a.tecReq, `${a.name} 습득`));
+  if (key === 'vit') CONFIG.board.playerByVit.forEach(([at, n]) => add(at, `판 ${n}×${n}`));
   if (key === 'int') S.attackSlotsByInt.forEach(([at, n]) => add(at, `공격 슬롯 ${n}개`));
   // 같은 값끼리 합치기
   const byAt = new Map();
@@ -79,6 +82,6 @@ export function perPointText(run, key) {
   if (key === 'agi') return `적 선 두께 ${f(enemyLineWidthVs(run))}`;
   if (key === 'tec') return `사거리 +${f(tecReachBonus(run))}`;
   if (key === 'vit') return `강화 +${run.stats.vit * CONFIG.stats.enhancePerVit}`;
-  if (key === 'int') return `학습비 -${Math.round(learnDiscount(run) * 100)}%`;
+  if (key === 'int') return `공격 슬롯 ${attackSlots(run)}개`;
   return '';
 }

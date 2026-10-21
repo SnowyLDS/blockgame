@@ -1,6 +1,7 @@
 // 장비 아이템 생성
 import { CONFIG } from '../config/gameConfig.js';
 import { pick, weightedIndex, weightedKey } from './rng.js';
+import { gradeExtend } from './stats.js';
 
 let uid = 1;
 
@@ -24,7 +25,7 @@ export const itemPrice = item => CONFIG.grades[item.grade].price;
 export function itemDesc(item) {
   const g = CONFIG.grades[item.grade];
   if (item.kind === 'weapon') {
-    return `요구 힘 ${g.strReq} · 공격 범위 +${g.weaponExtend}칸`;
+    return `공격 범위 +${gradeExtend(item)}칸`;
   }
   return `강화 횟수 +${g.armorEnhance}`;
 }

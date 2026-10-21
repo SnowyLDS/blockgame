@@ -24,10 +24,10 @@ export function statLine(run, key) {
   const v = run.stats[key];
   let note = '';
   if (key === 'str') note = `칸당 피해 ${dmgPerCell(run)}`;
-  if (key === 'agi') note = Object.values(CONFIG.dodgeSkills).filter(d => v >= d.agiReq).map(d => d.name).join('·') + ' 해금';
+  if (key === 'agi') note = Object.values(CONFIG.dodgeSkills).filter(d => v >= d.agiReq).map(d => d.name).join('·') + ' 습득';
   if (key === 'tec') {
     const fam = activeFamily(run);
-    note = Object.values(CONFIG.attackSkills).filter(a => a.family === fam && v >= a.tecReq).map(a => a.name).join('·') + ' 해금';
+    note = Object.values(CONFIG.attackSkills).filter(a => a.family === fam && v >= a.tecReq).map(a => a.name).join('·') + ' 습득';
   }
   if (key === 'vit') note = '포인트마다 강화 +1';
   if (key === 'int') note = `공격 슬롯 ${attackSlots(run)}`;
@@ -66,9 +66,14 @@ export function hud(app) {
   box.refresh = render;
   return box;
 }
-export function newCoreNotice() {
+// 스탯을 올린 결과 알림 (gainStat 반환값): 판이 커짐 / 새 기술 습득
+export function statGainNotice({ grown, learned }) {
+  const msgs = [];
+  if (grown) msgs.push(`판이 ${grown}×${grown} 으로 커졌습니다! 최대 체력 ${grown * grown}칸 — 빈칸은 회복 조각으로 채우세요`);
+  if (learned.length) msgs.push(`새 기술: ${learned.join(', ')} — 인벤토리(I)에서 장착을 바꿀 수 있어요`);
+  if (!msgs.length) return;
   sfx.enhance();
-  toast('☆ 보조 코어 +1! 여관 재정비에서 위치를 옮길 수 있어요');
+  toast(`☆ ${msgs.join(' / ')}`);
 }
 
 // 상점 주인·여관 주인·교관 등 NPC 초상화 + 대사

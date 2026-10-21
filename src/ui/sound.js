@@ -74,6 +74,7 @@ export const sfx = {
   diceLand: play(() => { noise({ dur: 0.08, freq: 1500, q: 2, vol: 0.3 }); tone({ freq: 880, dur: 0.15, type: 'triangle', vol: 0.12, delay: 0.05 }); }),
   slash: play(() => { noise({ dur: 0.22, freq: 5000, to: 900, q: 1.5, vol: 0.35 }); }),
   smash: play(() => { tone({ freq: 160, to: 45, dur: 0.3, type: 'sine', vol: 0.5 }); noise({ dur: 0.18, freq: 600, q: 0.8, vol: 0.3, type: 'lowpass' }); }),
+  arrow: play(() => { tone({ freq: 900, to: 300, dur: 0.08, type: 'triangle', vol: 0.12 }); noise({ dur: 0.18, freq: 4000, to: 1500, q: 3, vol: 0.25, delay: 0.03 }); }),
   punch: play(() => { tone({ freq: 220, to: 70, dur: 0.12, type: 'sine', vol: 0.45 }); noise({ dur: 0.06, freq: 1200, q: 1, vol: 0.2 }); }),
   hit: play(n => { for (let i = 0; i < Math.min(n, 6); i++) noise({ dur: 0.07, freq: 1800 + Math.random() * 1500, q: 3, vol: 0.18, delay: i * 0.035 }); }),
   collapse: play(() => { noise({ dur: 0.6, freq: 900, to: 120, q: 0.7, vol: 0.35, type: 'lowpass' }); tone({ freq: 300, to: 60, dur: 0.5, type: 'sawtooth', vol: 0.06 }); }),

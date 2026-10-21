@@ -53,7 +53,8 @@ function drawFrom(ctx, img, src, x, y, w, h) {
 //  배경색 = 가장자리 픽셀들의 중앙값, tol = 색 차이 허용치(RGB 차 합)
 const cutouts = new Map(); // 시트#키 → canvas
 
-function cutoutCanvas(img, rect, tol) {
+// inner: true 면 가장자리와 안 이어진 안쪽(예: 활대와 시위 사이)도 배경색에 아주 가까운 픽셀은 지움
+function cutoutCanvas(img, rect, tol, inner = false) {
   const [sx, sy, sw, sh] = rect;
   const w = Math.round(sw), h = Math.round(sh);
   const c = document.createElement('canvas');
@@ -80,6 +81,7 @@ function cutoutCanvas(img, rect, tol) {
       if (j >= 0 && !bg[j] && dist(j) <= tol) { bg[j] = 1; stack.push(j); }
     }
   }
+  if (inner) for (let i = 0; i < w * h; i++) if (!bg[i] && dist(i) <= tol * 0.6) bg[i] = 1;
   for (let i = 0; i < w * h; i++) {
     if (bg[i]) { p[i * 4 + 3] = 0; continue; }
     // 배경과 맞닿은 경계 픽셀은 색 차이에 따라 반투명 (계단 현상 줄이기)
@@ -93,7 +95,7 @@ function cutoutCanvas(img, rect, tol) {
 
 function getCutout(sheetCfg, key, img, cell) {
   const ck = `${sheetCfg.sheet}#${key}`;
-  if (!cutouts.has(ck)) cutouts.set(ck, cutoutCanvas(img, sliceRect(img, sheetCfg, cell), sheetCfg.cutoutTolerance ?? 36));
+  if (!cutouts.has(ck)) cutouts.set(ck, cutoutCanvas(img, sliceRect(img, sheetCfg, cell), sheetCfg.cutoutTolerance ?? 36, sheetCfg.cutoutInner));
   return cutouts.get(ck);
 }
 
@@ -109,14 +111,29 @@ export function drawSprite(canvas, key, sheetCfg = CONFIG.sprites) {
     if (!sheetCfg.bare && !sheetCfg.cutout) { ctx.fillStyle = '#141a28'; ctx.fillRect(0, 0, w, h); }
     drawFrom(ctx, img, src, 0, 0, w, h);
   };
-  (cell.img ? loadImage(cell.img) : Promise.resolve(null)).then(own => {
-    if (own) return paint(own, null);
-    return loadImage(sheetCfg.sheet).then(img => {
-      if (!img) return;
-      if (sheetCfg.cutout) paint(getCutout(sheetCfg, key, img, cell), null);
-      else paint(img, sliceRect(img, sheetCfg, cell));
-    });
-  });
+  // 그림 찾는 순서 (먼저 있는 것을 씀):
+  //  1) sheetOf: 다른 시트 CONFIG[이름] 의 sheetAt(없으면 at) 칸  (예: 활 → bowSheet, 기사 → knightSheet)
+  //  2) img: 그림 파일 한 장
+  //  3) 이 시트의 at 칸 (sheetOf 만 있고 sheetAt 이 없으면 at 은 다른 시트 위치라 건너뜀)
+  const tries = [];
+  if (cell.sheetOf) tries.push({ cfg: CONFIG[cell.sheetOf], at: cell.sheetAt ?? cell.at });
+  if (cell.img) tries.push({ path: cell.img });
+  if (cell.at && !(cell.sheetOf && !cell.sheetAt)) tries.push({ cfg: sheetCfg, at: cell.at });
+  (async () => {
+    for (const t of tries) {
+      if (t.path) {
+        const own = await loadImage(t.path);
+        if (own) return paint(own, null);
+        continue;
+      }
+      const img = await loadImage(t.cfg.sheet);
+      if (!img) continue;
+      const where = { at: t.at };
+      if (t.cfg.cutout) paint(getCutout(t.cfg, key, img, where), null);
+      else paint(img, sliceRect(img, t.cfg, where));
+      return;
+    }
+  })();
 }
 
 // 매 프레임 그리는 캔버스(지도 등)용: 아이콘을 작은 캔버스에 한 번 그려 두고(배경 제거 포함) 재사용

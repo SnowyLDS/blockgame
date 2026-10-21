@@ -6,7 +6,6 @@ import {
   assignedEnhance, cellHpMax, cloneBody, componentOf, countCells, disconnectedCells,
   getCell, inBounds, makeCell, maxTier, regroupPieces, removeDisconnected, setCell,
 } from '../../core/body.js';
-import { normalizeOffsets } from '../../core/pieces.js';
 import { maxCells, totalEnhance } from '../../core/stats.js';
 import { drawBody, drawCell, drawGrid, drawMarks, pieceThumb } from '../draw.js';
 import { sfx } from '../sound.js';
@@ -26,7 +25,6 @@ export function formationScreen(app, root, { mode = 'full', back = 'map', backPa
   const infoBox = el('div', { class: 'panel-row big' });
   const trayBox = el('div', { class: 'tray' });
   const toolBox = el('div', { class: 'chips' });
-  const heldBox = el('div', { class: 'chips' });
   const st = { tool: 'move', held: null, mouse: null };
   let raf = 0;
 
@@ -79,7 +77,6 @@ export function formationScreen(app, root, { mode = 'full', back = 'map', backPa
     sfx.rotate();
   }
 
-  const heldIsCore = () => st.held?.cells.some(c => c.cell.core);
 
   function heldTargets() {
     const m = mouseCell();
@@ -117,14 +114,6 @@ export function formationScreen(app, root, { mode = 'full', back = 'map', backPa
     if (!st.held) return;
     if (st.held.source === 'body') st.held.origin.forEach(o => setCell(body, o.x, o.y, o.cell));
     st.held = null;
-    refresh();
-  }
-
-  function stashHeld() {
-    if (!st.held || st.held.source !== 'body' || heldIsCore()) return;
-    tray.push({ offsets: normalizeOffsets(st.held.cells.map(c => [c.dx, c.dy])), color: st.held.cells[0].cell.color });
-    st.held = null;
-    toast('보관함으로 옮겼습니다 (강화는 반환됨)');
     refresh();
   }
 
@@ -176,11 +165,6 @@ export function formationScreen(app, root, { mode = 'full', back = 'map', backPa
         el('button', { class: `chip ${st.tool === 'move' ? 'on' : ''}`, onclick: () => { cancelHeld(); st.tool = 'move'; refresh(); } }, '✋ 조각 이동'),
         el('button', { class: `chip ${st.tool === 'enhance' ? 'on' : ''}`, onclick: () => { cancelHeld(); st.tool = 'enhance'; refresh(); } }, '✨ 강화 지정'));
     }
-    setChildren(heldBox, ...(st.held ? [
-      el('button', { class: 'btn small', onclick: () => { rotateHeld(); } }, '↻ 회전 (R·휠)'),
-      el('button', { class: 'btn small', onclick: cancelHeld }, '취소 (Esc)'),
-      mode === 'full' && st.held.source === 'body' && !heldIsCore() && el('button', { class: 'btn small warn', onclick: stashHeld }, '보관함으로'),
-    ] : []));
   }
 
   function render() {
@@ -236,12 +220,12 @@ export function formationScreen(app, root, { mode = 'full', back = 'map', backPa
   window.addEventListener('keydown', onKey);
 
   const help = mode === 'full'
-    ? ['✋ 조각 이동: 조각을 클릭해 들고, 원하는 곳에서 클릭해 놓기 (휠·R·우클릭 회전)',
-      '판(5×5) 칸 수가 최대 체력이에요. 연결은 상관없으니 원하는 곳에 흩어 배치하세요',
+    ? ['✋ 조각 이동: 조각을 클릭해 들고, 원하는 곳에서 클릭해 놓기 (휠·R·우클릭 회전, Esc 취소)',
+      `판(${body.w}×${body.h}) 칸 수가 최대 체력이에요. 연결은 상관없으니 원하는 곳에 흩어 배치하세요`,
       '✨ 강화 지정: 좌클릭 = 강화 +1 (하트 → 방패), 우클릭 = 강화 -1',
       '오른쪽 보관함의 회복 조각을 클릭하면 들 수 있어요 — 다른 칸 위에 놓으면 그 칸은 새 조각으로 바뀌어요',
       '회피하려면 빈칸이 필요해요 — 빈칸을 남겨 두면 회피로 옮길 자리가 생깁니다']
-    : ['보관함의 회복 조각을 클릭해 들고, 판 위 아무 곳에나 놓으세요 — 다른 칸 위에 놓으면 그 칸은 새 조각으로 바뀌어요 (휠·R·우클릭 회전)',
+    : ['보관함의 회복 조각을 클릭해 들고, 판 위 아무 곳에나 놓으세요 — 다른 칸 위에 놓으면 그 칸은 새 조각으로 바뀌어요 (휠·R·우클릭 회전, Esc 취소)',
       '기존 조각 이동과 강화 재지정은 여관에서만 가능합니다',
       '붙이지 않은 조각은 보관함에 그대로 남습니다'];
 
@@ -250,7 +234,7 @@ export function formationScreen(app, root, { mode = 'full', back = 'map', backPa
     el('div', { class: 'two-col' },
       el('div', { class: 'battle-wrap' }, canvas),
       el('div', { class: 'panel side' },
-        infoBox, toolBox, heldBox,
+        infoBox, toolBox,
         el('h4', {}, '보관함'), trayBox,
         el('ul', { class: 'help-list muted' }, help.map(h => el('li', {}, h))),
         el('div', { class: 'legend' },

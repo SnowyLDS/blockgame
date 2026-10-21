@@ -6,7 +6,7 @@ import { acquireItem, addPending, advanceStage, gainStat, isLastStage, makeRewar
 import { pieceThumb } from '../draw.js';
 import { icon, itemIconCanvas, potionIcon } from '../sprites.js';
 import { sfx } from '../sound.js';
-import { itemCard, newCoreNotice, screenHeader } from '../widgets.js';
+import { itemCard, screenHeader, statGainNotice } from '../widgets.js';
 
 const SKIP = -1; // 아이템 받지 않기
 
@@ -64,7 +64,7 @@ export function rewardScreen(app, root, { kind }) {
 
   // 고른 것을 한꺼번에 적용하고 다음으로
   function confirm() {
-    if (rw.statPick != null && gainStat(run, rw.statPick, rw.statAmount)) newCoreNotice();
+    if (rw.statPick != null) statGainNotice(gainStat(run, rw.statPick, rw.statAmount));
     const o = rw.itemPick != null && rw.itemPick !== SKIP ? rw.offers[rw.itemPick] : null;
     if (o?.type === 'gear') toast(acquireItem(run, o.item)); // 빈 칸이면 자동 장착
     if (o?.type === 'potion') addPending(run, o.piece);

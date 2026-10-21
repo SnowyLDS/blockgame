@@ -30,24 +30,36 @@ export class Combat {
   }
 
   buildPlayerAttack(skillKey, x, y) {
-    return buildAttack({
+    const atk = buildAttack({
       shapeKey: CONFIG.attackSkills[skillKey].shape,
       x, y, rotation: 0, extend: this.extend, widthBonus: this.widthBonus, owner: 'player',
     });
+    atk.skillKey = skillKey;
+    return atk;
   }
 
   previewAttack(atk) {
     return simulateAttacks(this.enemy.body, [atk], this.dmg);
   }
 
-  // 내 공격 → 적이 살아 있으면 적 공격 예고 후 회피 단계로
+  // 이번 공격 단계에서 남은 발 수 (여러 발 기술 사용 중이면 숫자, 아니면 null)
+  shotsLeft = null;
+
+  // 내 공격 → 적이 살아 있으면 적 공격 예고 후 회피 단계로.
+  //  여러 발 기술(shots)은 마지막 발을 쏠 때까지 공격 단계에 머묾
   applyAttack(atk) {
     if (this.phase !== 'attack') return null;
     const sim = this.previewAttack(atk);
     this.enemy.body = sim.body;
+    if (this.shotsLeft == null) this.shotsLeft = CONFIG.attackSkills[atk.skillKey]?.shots ?? 1;
+    this.shotsLeft--;
     if (countCells(sim.body) === 0) {
       this.phase = 'won';
+      this.shotsLeft = null;
+    } else if (this.shotsLeft > 0) {
+      // 다음 발을 기다림 (phase 그대로 'attack')
     } else {
+      this.shotsLeft = null;
       this.forecast = chooseEnemyAttacks(this.enemy, this.player, { isLocked: this.isDodgeLocked });
       this.phase = 'dodge';
     }

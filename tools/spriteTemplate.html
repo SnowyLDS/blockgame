@@ -38,6 +38,9 @@ const SHEETS = {
   chars: { cfg: CONFIG.sprites, name: '캐릭터', file: 'sprite_template.png' },
   items: { cfg: CONFIG.itemSprites, name: '아이템', file: 'item_template.png' },
   icons: { cfg: CONFIG.icons, name: 'UI 아이콘', file: 'icon_template.png' },
+  bows: { cfg: CONFIG.bowSheet, name: '활', file: 'bow_template.png' },
+  knights: { cfg: CONFIG.knightSheet, name: '투구 기사', file: 'knight_template.png' },
+  frames: { cfg: CONFIG.mapFrames, name: '지도 노드 테두리', file: 'map_nodes_template.png' },
 };
 const sheetKey = SHEETS[q.get('sheet')] ? q.get('sheet') : 'chars';
 const isItems = sheetKey !== 'chars';
@@ -63,7 +66,9 @@ function wrap(text, maxW) {
 
 ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height);
 const byPos = {};
-for (const [key, c] of Object.entries(S.cells)) byPos[c.at.join(',')] = [key, c];
+// sheetOf 칸(다른 시트에서 가져오는 칸, 예: 활)과 개별 그림 칸은 이 시트 격자에서 제외
+const OWN = Object.entries(S.cells).filter(([, c]) => c.at && !(c.sheetOf && !c.sheetAt));
+for (const [key, c] of OWN) byPos[c.at.join(',')] = [key, c];
 for (let r = 0; r < S.rows; r++) for (let col = 0; col < S.cols; col++) {
   const x = col * CELL, y = r * CELL;
   ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, y + 1.5, CELL - 3, CELL - 3);
@@ -87,14 +92,14 @@ document.getElementById('dl').onclick = () => {
 document.getElementById('prompt').textContent =
   `${S.cols}열 × ${S.rows}행의 균등한 격자 이미지 한 장을 만들어 주세요. 격자선이나 글자는 넣지 마세요.\n` +
   `공통 스타일: ${S.style}\n\n` +
-  Object.values(S.cells).map(c => `[${c.at[0] + 1}열 ${c.at[1] + 1}행] ${c.desc}`).join('\n');
+  OWN.map(([, c]) => `[${c.at[0] + 1}열 ${c.at[1] + 1}행] ${c.desc}`).join('\n');
 
 const img = new Image();
 img.onload = () => {
   const box = document.getElementById('preview'); box.textContent = '';
   box.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
   const cw = img.naturalWidth / S.cols, ch = img.naturalHeight / S.rows, ins = S.inset ?? 0;
-  for (const [key, c] of Object.entries(S.cells)) {
+  for (const [key, c] of OWN) {
     const p = document.createElement('canvas'); p.width = 120; p.height = 120;
     p.getContext('2d').drawImage(img, c.at[0] * cw + cw * ins, c.at[1] * ch + ch * ins, cw * (1 - 2 * ins), ch * (1 - 2 * ins), 0, 0, 120, 120);
     const fig = document.createElement('div'); fig.style.textAlign = 'center';

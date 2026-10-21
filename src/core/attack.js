@@ -19,13 +19,13 @@ export function simulateAttacks(body, attacks, damage) {
   const destroyed = [];
   const collapsed = [];
   for (const atk of attacks) {
-    for (const [x, y] of cellsHitByShape(atk.placed, b.w, b.h)) {
+    for (const [x, y, mult] of cellsHitByShape(atk.placed, b.w, b.h)) {
       const c = getCell(b, x, y);
       if (!c || c.core) continue;
-      c.hp -= damage;
+      c.hp -= damage * mult;
       const k = idx(b, x, y);
       const h = hitMap.get(k) ?? { x, y, damage: 0, destroyed: false };
-      h.damage += damage;
+      h.damage += damage * mult;
       hitMap.set(k, h);
       if (c.hp <= 0) {
         setCell(b, x, y, null);
